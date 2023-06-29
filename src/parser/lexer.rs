@@ -110,7 +110,9 @@ impl Lexer {
     }
 
     pub fn parse<T: ToString>(&mut self, input: &T) -> Result<Vec<Token>, Error> {
-        self.input = input.to_string().into();
+        // BUG: format!("\n{}") is needed becuze it skips first line 
+        self.input = format!("\n{}", input.to_string()).into();
+        // self.input = input.to_string().into();
 
         let mut tokens: Vec<Token> = Vec::new();
         self.next_token()?;
@@ -205,6 +207,7 @@ mod test {
 ";
 
         let tokens = vec![
+            Token::EOL,
             Token::Heading(1),
             Token::WhiteSpace,
             Token::Indent("Test".into()),
@@ -229,9 +232,18 @@ mod test {
 
         let mut lexer = Lexer::new();
 
+
         let res = lexer.parse::<&str>(&input)?;
 
-        println!("tokens: {:?}\nres {:?}\n", tokens, res);
+        let mut diff: Vec<(Token, Token)> = vec![];
+        for (i,t) in tokens.iter().enumerate()  {
+            if *t != res[i] {
+                diff.push((t.clone(), res[i].clone()))
+            }
+        }
+
+        println!("DIFF {:?}", diff);
+        println!("TOKENS: {:?}\nres {:?}\n", tokens, res);
         assert_eq!(tokens, res);
 
         Ok(())
