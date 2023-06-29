@@ -1,6 +1,5 @@
 use std::{
-    default,
-    fmt::{format, Display},
+    fmt::Display,
     u8,
 };
 

@@ -1,12 +1,11 @@
-use std::{default, fmt::format, usize};
+use std::usize;
 
-use log::info;
-use ratatui::text::{Line, Span, Text};
+use ratatui::text::{Line, Span};
 
 use crate::{error::Error, style::style::MdStyle};
 
 use super::{
-    lexer::{Lexer, Token},
+    lexer::Token,
     parser_helpers::{
         genarate_list_start, generate_heading, generate_horizontal_rule, generate_indent,
     },
@@ -156,10 +155,10 @@ impl Parser {
 #[cfg(test)]
 mod test {
 
-    use crate::{parser::lexer::Lexer, style::style::MdStyle};
+    use crate::parser::lexer::Lexer;
     use anyhow::{Ok, Result};
 
-    use super::{Parser, Token};
+    use super::Parser;
 
     #[test]
     fn test_expr() -> Result<()> {
