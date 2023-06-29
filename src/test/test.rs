@@ -1,40 +1,7 @@
-#![allow(unused_imports)]
-#![warn(missing_docs)]
-//!
-use error::Error;
-use parser::{lexer::Lexer, parser::Parser};
-use ratatui::text::Text;
-use style::style::MdStyle;
-mod error;
-mod parser;
-mod style;
-
-
-/// trait MarkdownParsable will take AsRef<[u8]> and parse it into ratatui Text
-pub trait MarkdownParsable {
-    /// Convert type to Text
-    fn parse_markdown(&self, style: Option<MdStyle>) -> Result<Text<'static>, Error>;
-}
-
-impl<T> MarkdownParsable for T where T: ToString {
-    fn parse_markdown(&self, style: Option<MdStyle>)  -> Result<Text<'static>, Error> {
-        let mut lexer = Lexer::new();
-        let res =  lexer.parse(self)?;
-
-        let mut parser = Parser::new(res, style);
-        let res = parser.parse()?;
-
-        Ok(Text::from(res))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{
+use std::{
     error::Error,
     io,
-    time::{Duration, Instant}, fs,
+    time::{Duration, Instant},
 };
 
 use crossterm::{
@@ -66,8 +33,8 @@ impl App {
         self.scroll %= 10;
     }
 }
-#[test]
-fn ui_test() -> Result<(), Box<dyn Error>> {
+
+fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -122,20 +89,11 @@ fn run_app<B: Backend>(
     }
 }
 
-#[allow(dead_code)]
-fn ui<B: Backend>(f: &mut Frame<B>, _app: &App) {
+fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     let size = f.size();
 
     // Words made "loooong" to demonstrate line breaking.
-    let file = fs::read("src/test/test.md").unwrap();
-    let s = "
-## TODO
-1. otehu
-
-> toehu
->> aeouth
-___
-[lol](pog.com) lool
+    let s = "## TODO
 - long_line
 - long_line
 * toue";
@@ -145,10 +103,20 @@ ___
     let block = Block::default().style(Style::default().fg(Color::Black));
     f.render_widget(block, size);
 
-    let text =  match String::from_utf8(file).unwrap().parse_markdown(None) {
-        Ok(text) => text,
-        Err(err) => Text::from(err.to_string())
-    };
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(2)
+        .constraints(
+            [
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+            ]
+            .as_ref(),
+        )
+        .split(size);
+
         
     let create_block = |title| {
         Block::default()
@@ -160,13 +128,29 @@ ___
             ))
     };
 
-
+    let paragraph = Paragraph::new(text.clone())
+        .style(Style::default().fg(Color::Gray))
+        .block(create_block("Default alignment (Left), no wrap"));
+    f.render_widget(paragraph, chunks[0]);
 
     let paragraph = Paragraph::new(text.clone())
         .style(Style::default().fg(Color::Gray))
         .block(create_block("Default alignment (Left), with wrap"))
         .wrap(Wrap { trim: true });
-    f.render_widget(paragraph, f.size());
-}
+    f.render_widget(paragraph, chunks[1]);
 
+    let paragraph = Paragraph::new(text.clone())
+        .style(Style::default().fg(Color::Gray))
+        .block(create_block("Right alignment, with wrap"))
+        .alignment(Alignment::Right)
+        .wrap(Wrap { trim: true });
+    f.render_widget(paragraph, chunks[2]);
+
+    let paragraph = Paragraph::new(text)
+        .style(Style::default().fg(Color::Gray))
+        .block(create_block("Center alignment, with wrap, with scroll"))
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true })
+        .scroll((app.scroll, 0));
+    f.render_widget(paragraph, chunks[3]);
 }
