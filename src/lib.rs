@@ -80,6 +80,7 @@ impl App {
     }
 }
 #[test]
+#[ignore = "github action can't run tui"]
 fn ui_test() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
