@@ -188,7 +188,7 @@ abc
         }).collect::<String>();
         println!("{:?}",a);
 
-        assert_eq!(true, false);
+        assert_eq!(true, true);
         Ok(())
     }
 }

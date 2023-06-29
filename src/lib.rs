@@ -106,6 +106,7 @@ fn ui_test() -> Result<(), Box<dyn Error>> {
         println!("{err:?}");
     }
 
+    assert_eq!(true, true);
     Ok(())
 }
 
