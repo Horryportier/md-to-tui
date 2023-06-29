@@ -1,6 +1,20 @@
-#![allow(unused_imports)]
-#![warn(missing_docs)]
-//!
+//// # Usage 
+//// this library implements `MarkdownParsable` for types that implement `ToString` trait.
+//// You can use `parse_markdown` fn to parse markdown to `Text`. 
+//// `parse_markdown` takes `option` of `MdStyle` and returns `Result<Text<'static>, Error>`
+//// ```rust 
+//// example
+//// let md = "
+//// # TODO
+////
+//// - [ ] one
+//// - [ ] two 
+////
+//// [link](http://exp.com)
+////
+//// "
+//// let res = md.parse_markdown(Some(style))
+//// `
 use error::Error;
 use parser::{lexer::Lexer, parser::Parser};
 use ratatui::text::Text;
@@ -10,7 +24,7 @@ mod parser;
 mod style;
 
 
-/// trait MarkdownParsable will take AsRef<[u8]> and parse it into ratatui Text
+/// trait MarkdownParsable will take any trait that impl `ToString` and parse it into ratatui Text
 pub trait MarkdownParsable {
     /// Convert type to Text
     fn parse_markdown(&self, style: Option<MdStyle>) -> Result<Text<'static>, Error>;
@@ -44,9 +58,8 @@ use crossterm::{
 };
 use ratatui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::{Line, Masked, Span},
+    text::Span,
     widgets::{Block, Borders, Paragraph, Wrap},
     Frame, Terminal,
 };
@@ -93,6 +106,7 @@ fn ui_test() -> Result<(), Box<dyn Error>> {
         println!("{err:?}");
     }
 
+    assert_eq!(true, true);
     Ok(())
 }
 

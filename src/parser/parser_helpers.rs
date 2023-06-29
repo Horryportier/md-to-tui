@@ -1,4 +1,4 @@
-use ratatui::{text::Span, style::Style};
+use ratatui::text::Span;
 
 use crate::style::style::MdStyle;
 

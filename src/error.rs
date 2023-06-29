@@ -1,4 +1,4 @@
-use std::{fmt::{Display, format}, default};
+use std::fmt::Display;
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone, Default)]
 pub enum Error {
