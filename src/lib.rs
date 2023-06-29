@@ -21,7 +21,7 @@ use ratatui::text::Text;
 use style::style::MdStyle;
 mod error;
 mod parser;
-mod style;
+pub mod style;
 
 
 /// trait MarkdownParsable will take any trait that impl `ToString` and parse it into ratatui Text
