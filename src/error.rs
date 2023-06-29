@@ -1,11 +1,21 @@
-use std::fmt::Display;
+use std::{fmt::{Display, format}, default};
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone, Default)]
 pub enum Error {
-    ParserErr(),
+    #[default]
+    DefErr, 
+
+    ParserErr(String),
+    LexerErr(String),
 }
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        let text: String;  
+        match self {
+            Self::DefErr =>  text = "Deafult error".into(),
+            Self::ParserErr(s) => text = format!("Parser Err {}", s),
+            Self::LexerErr(s) => text = format!("Parser Err {}", s),
+        }
+        write!(f, "md-to-tui error:  {}", text)
     }
 }

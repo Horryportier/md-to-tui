@@ -1,0 +1,38 @@
+warning: unused variable: `app`
+   --> src/lib.rs:125:37
+    |
+125 | fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+    |                                     ^^^ help: if this is intentional, prefix it with an underscore: `_app`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `md-to-tui` (lib test) generated 1 warning (run `cargo fix --lib -p md-to-tui --tests` to apply 1 suggestion)
+    Finished test [unoptimized + debuginfo] target(s) in 0.03s
+     Running unittests src/lib.rs (target/debug/deps/md_to_tui-a1b8f7b153a07e1e)
+
+running 4 tests
+test parser::lexer::test::dummy ... ok
+test parser::lexer::test::get_next_token ... ok
+[?1049h[?1000h[?1002h[?1003h[?1015h[?1006htest parser::parser::test::test_expr ... FAILED
+test tests::ui_test ... FAILED
+
+failures:
+
+---- parser::parser::test::test_expr stdout ----
+"Lol - 1 * 2,**abc2"
+thread 'parser::parser::test::test_expr' panicked at 'assertion failed: `(left == right)`
+  left: `true`,
+ right: `false`', src/parser/parser.rs:188:9
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::ui_test stdout ----
+thread 'tests::ui_test' panicked at 'called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }', src/lib.rs:129:42
+
+
+failures:
+    parser::parser::test::test_expr
+    tests::ui_test
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
