@@ -28,6 +28,8 @@ pub struct MdStyle {
   pub link: Style,
   pub link_text: Style,
   pub tag: Style,
+
+  pub code: Style,
 }
 
 impl Default for MdStyle {
@@ -55,7 +57,10 @@ impl Default for MdStyle {
 
         link: Style::default().fg(Color::Blue),
         link_text:  Style::default().fg(Color::Red),
-        tag: Style::default().bg(Color::Cyan)
+        tag: Style::default().bg(Color::Cyan),
+        
+        code: Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
         }
     }
 }
+

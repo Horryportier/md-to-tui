@@ -22,8 +22,8 @@
 ---
 - [x] ABC
 - [ ] ABC
-    1. ABC
-    1. ABC
+1. ABC
+2. ABC
     - [x] ABC
     - abc
 + ABC 
@@ -32,8 +32,9 @@
 ```rust
 let a: String = "".to_string();
 ```
+
+`let a = b`
 ==aoeu==
-[[test]]
 etuaoh 
 [lin_text](https://google.com)
 

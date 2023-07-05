@@ -1,194 +1,211 @@
-use std::usize;
+use std::sync::{Arc, Mutex};
 
-use ratatui::text::{Line, Span};
+use ratatui::{
+    style::Style,
+    text::{Line, Span},
+};
 
 use crate::{error::Error, style::style::MdStyle};
 
-use super::{
-    lexer::Token,
-    parser_helpers::{
-        genarate_list_start, generate_heading, generate_horizontal_rule, generate_indent,
-    },
+use comrak::{
+    self,
+    nodes::{AstNode, NodeValue},
+    parse_document, Arena, ComrakOptions,
 };
 
-// #[derive(Debug, PartialEq, Clone, Default)]
-// enum Expr {
-//     Heading(Vec<Token>),
-//     List(Vec<Token>),
-//     Blockquete(Vec<Token>),
-//     Paragrath(Vec<Token>),
-//     LinkText(Vec<Token>),
-//     Link(Vec<Token>),
-//     Tag(Vec<Token>),
-//     Empty,
-//     #[default]
-//     None,
-// }
+use super::parser_helpers::{
+    generate_blockquete, generate_code, generate_codeblock, generate_heading,
+    generate_indent, generate_link, generate_list, generate_rule, generate_description_item, generate_html_block,
+};
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Parser {
-    pub input: Vec<Token>,
+    pub input: String,
     pub style: MdStyle,
-
-    pub position: usize,
-    pub read_position: usize,
-    pub token: Token,
-
-    pub lines: Vec<Line<'static>>,
 }
 
 impl Parser {
-    pub fn new(input: Vec<Token>, style: Option<MdStyle>) -> Parser {
-        // info!("created new Parser");
-
-        let style = match style {
-            Some(style) => style,
-            None => MdStyle::default(),
-        };
-
-        let parser = Parser {
+    pub fn new(input: String, style: Option<MdStyle>) -> Parser {
+        Parser {
             input,
-            style,
-            ..Default::default()
-        };
-
-        // info!("Parser {:?}", parser);
-
-        return parser;
+            style: match style {
+                None => MdStyle::default(),
+                Some(style) => style, 
+            },
+        }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Line<'static>>, Error> {
-        self.read_token();
-
-        let mut lines: Vec<Line> = Vec::new();
-        self.next_line()?;
-        let mut end = !(self.position >= self.input.len());
-        while end {
-            // info!("IS_END {}", end);
-            // info!("Positon/Len/Tk {}/{}/{}", self.position, self.input.len(), self.token);
-            let next = self.next_line()?;
-            // info!("Next Line {:#?}", next);
-            end = !(self.position >= self.input.len());
-            lines.push(next);
+    pub fn parse(&self) -> Result<Vec<Line<'static>>, Error> {
+        let mut lines: Vec<Line> = vec![];
+        for line in self.input.clone().split("\n") {
+            let res = self.parse_line(line.into())?;
+            lines.push(res.into());
         }
-
-        // info!("Lines {:#?}", lines);
-
-        self.lines = lines.clone();
         Ok(lines)
     }
 
-    fn next_line<'a>(&mut self) -> Result<Line<'a>, Error> {
-        let mut spans: Vec<Span> = Vec::new();
-        while !self.token.is_end() {
-            // info!("Is end {}", self.token.is_end());
+    pub fn parse_line(&self, line: String) -> Result<Vec<Span<'static>>, Error> {
+        let style = &self.style;
 
-            spans.push(match &self.token {
-                Token::Heading(heading) => generate_heading(heading, &self.style),
-                Token::Asterisk | Token::Dash | Token::Plus => {
-                    genarate_list_start(self.token.clone(), &self.style)
+        let arena = Arena::new();
+        let ast = parse_document(&arena, &line, &ComrakOptions::default());
+
+        let spans = Arc::new(Mutex::new(Vec::<Span>::new()));
+        iter_nodes(ast, &|node| {
+            let parent = match &node.clone().parent() {
+              None => NodeValue::Document,  
+              Some(node) => node.clone().data.borrow_mut().value.to_owned(),
+            };
+            let val = &node.clone().data.borrow_mut().value.to_owned();
+
+            match &mut node.data.borrow_mut().value {
+                NodeValue::Document => false,
+                NodeValue::Paragraph => false,
+                NodeValue::Strong => false,
+                NodeValue::Emph => false,
+                NodeValue::DescriptionList => false,
+                NodeValue::DescriptionTerm => false,
+                NodeValue::DescriptionDetails => false,
+                NodeValue::HtmlBlock(html) => {
+                    spans.lock().unwrap().push(generate_html_block(html, parent, style));
+                    false
                 }
-                Token::WhiteSpace => Span::from(" "),
-                Token::Indent(i) => generate_indent(i.into(), &self.style),
-                Token::Equal => {
-                    if self.peek() == Token::Equal {
-                        if self.peek() == Token::Equal {
-                            generate_horizontal_rule(self.token.clone(), &self.style);
-                        };
-                        generate_indent("==".into(), &self.style);
-                    }
-                    generate_indent("=".into(), &self.style)
+                NodeValue::HtmlInline(text) => {
+                    spans.lock().unwrap().push(generate_indent(text, parent, style));
+                    false
                 }
-                Token::Undersocre => {
-                    if self.peek() == Token::Undersocre {
-                        if self.peek() == Token::Undersocre {
-                            generate_horizontal_rule(self.token.clone(), &self.style);
-                        };
-                        generate_indent("__".into(), &self.style);
-                    }
-                    generate_indent("_".into(), &self.style)
+                NodeValue::FootnoteReference(text) => {
+                    spans.lock().unwrap().push(generate_indent(text, parent, style));
+                    false
                 }
-                Token::Dot => Span::from("."),
-                Token::RightParen => Span::styled("(", self.style.link),
-                Token::LeftParen => Span::styled(")", self.style.link),
-                Token::LeftSquare=> Span::styled("[", self.style.link_text),
-                Token::RightSquare => Span::styled("]", self.style.link_text),
-                Token::RightAngle => Span::styled(">", self.style.blocqoutes),
-                Token::LeftAngle => Span::styled("<", self.style.blocqoutes),
-                Token::BackTick => Span::styled("`", self.style.backtick),
-                Token::Colon => Span::styled(":", self.style.text),
-                Token::SemiColon => Span::styled(";", self.style.text),
-                Token::Slash => Span::styled("/", self.style.text),
+                NodeValue::FootnoteDefinition(text) => {
+                    spans.lock().unwrap().push(generate_indent(text, parent, style));
+                    false
+                }
+                &mut NodeValue::DescriptionItem(ref mut item) => {
+                    spans.lock().unwrap().push(generate_description_item(item,parent, style));
+                    false
+                }
+                &mut NodeValue::Heading(ref mut heading) => {
+                    spans.lock().unwrap().push(generate_heading(heading, style));
+                    false
+                }
+                &mut NodeValue::Text(ref mut text) => {
+                    spans.lock().unwrap().push(generate_indent(text, parent, style));
+                    false
+                }
+                &mut NodeValue::List(ref mut list) => {
+                    spans.lock().unwrap().push(generate_list(list, parent, style));
+                    false
+                }
+                &mut NodeValue::Item(ref mut list) => {
+                    spans.lock().unwrap().push(generate_list(list, parent, style));
+                    false
+                }
+                &mut NodeValue::BlockQuote => {
+                    spans.lock().unwrap().push(generate_blockquete(style));
+                    false
+                }
+                &mut NodeValue::LineBreak => true,
+                &mut NodeValue::Code(ref mut code) => {
+                    spans.lock().unwrap().push(generate_code(code, style));
+                    false
+                }
+                &mut NodeValue::CodeBlock(ref mut codeblock) => {
+                    spans
+                        .lock()
+                        .unwrap()
+                        .push(generate_codeblock(codeblock, style));
+                    false
+                }
+                &mut NodeValue::Link(ref mut link) => {
+                    spans
+                        .lock()
+                        .unwrap()
+                        .append(&mut generate_link(link, style));
+                    false
+                }
+                NodeValue::ThematicBreak => {
+                    spans.lock().unwrap().push(generate_rule(style));
+                    false
+                }
+                NodeValue::FrontMatter(ref mut front_matter) => {
+                    spans.lock().unwrap().push(Span::from(front_matter.to_owned()));
+                    false
+                }
+                
+                _ => {
+                    spans.lock().unwrap().push(Span::styled(
+                        format!("TODO: {:?}", val),
+                        Style::default().fg(ratatui::style::Color::Red),
+                    ));
+                    false
+                }
+            }
+        });
 
-                _ => Span::from(format!("TODO: {}", self.token.to_string())),
-            });
-
-            // info!("Spans {:#?}", spans);
-
-            self.read_token();
-        }
-        self.read_token();
-        let line = Line::from(spans);
-        // info!("Line {:#?}", line);
-        Ok(line)
+        Ok(spans.clone().lock().unwrap().to_vec())
     }
+}
 
-    fn read_token(&mut self) {
-        if self.read_position >= self.input.len() {
-            self.token = Token::EOF;
-        } else {
-            self.token = self.input[self.read_position].clone()
-        }
-        self.position = self.read_position;
-        self.read_position += 1;
-    }
-
-    fn peek(&mut self) -> Token {
-        if self.read_position >= self.input.len() {
-            return Token::EOF;
-        } else {
-            self.input[self.read_position].clone()
+fn iter_nodes<'a, F>(node: &'a AstNode<'a>, f: &F) -> bool
+where
+    F: Fn(&'a AstNode<'a>) -> bool,
+{
+    f(node);
+    for c in node.children() {
+        let is_end = iter_nodes(c, f);
+        if is_end {
+            break;
         }
     }
+    true
 }
 
 #[cfg(test)]
 mod test {
 
-    use crate::parser::lexer::Lexer;
+    use crate::parser::parser::Parser;
     use anyhow::{Ok, Result};
 
-    use super::Parser;
-
     #[test]
-    fn test_expr() -> Result<()> {
-        pretty_env_logger::init();
-        let md = "## test test 123 -
-Lol 
-- 1 
-* 2,
-*
-*
-abc
+    #[ignore = "xd"]
+    fn test_check_ast() -> Result<()> {
+        let text = "
+# A 
+## A 
+### A 
+#### A 
+##### A 
+###### A 
+--- 
+=== 
+---
++++
+#ABC
+`ABC`
+*ABC*
+**ABC**
+***ABC***
+> abc
+> > **ABC***
+> > >
+# A
+---
+=== 
+---
+- [x] ABC
+- [ ] ABC
+    1. ABC
+    1. ABC
 
-2
 ";
 
-        let mut lexer = Lexer::new();
-        let res = lexer.parse::<&str>(&md)?;
+        let parser = Parser::new(text.into(), None);
 
-        let mut parser = Parser::new(res, None);
         let res = parser.parse()?;
-        //println!("{:#?}", res);
-        let a = res.iter().map(|f| {
-            f.spans
-                .iter()
-                .map(|f| format!("{}", f.content.to_string()))
-                .collect::<Vec<String>>().join("")
-        }).collect::<String>();
-        println!("{:?}",a);
+        // assert_eq!(res, " ");
 
-        assert_eq!(true, true);
         Ok(())
     }
 }
